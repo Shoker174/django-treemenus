@@ -144,7 +144,13 @@ Template to specify how to display a menu item.
 **Example for this template**::
 
     {% load tree_menu_tags %}
-    <li><a href="{{ menu_item.value.url }}">{{ menu_item.value.caption }}</a>
+    <li>
+        <a href="{{ menu_item.value.url }}">
+            {% if menu_item.value.image %}
+                <img src="{{ menu_item.value.image.url }}" alt="{{ menu_item.value.caption }}">
+            {% endif %}
+            {{ menu_item.value.caption }}
+        </a>
         {% if menu_item.children %}
         <ul>
             {% for child_item in menu_item.children %}

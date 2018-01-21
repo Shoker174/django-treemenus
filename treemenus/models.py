@@ -9,6 +9,8 @@ class MenuItem(models.Model):
     caption = models.CharField(_('caption'), max_length=100)
     url = models.CharField(_('URL'), max_length=200, blank=True)
     named_url = models.CharField(_('named URL'), max_length=200, blank=True)
+    image = models.ImageField(verbose_name=_('image'), blank=True, upload_to='upload/menu',
+                              help_text=_('PNG, JPG, GIF only.'))
     level = models.IntegerField(_('level'), default=0, editable=False)
     rank = models.IntegerField(_('rank'), default=0, editable=False)
     menu = models.ForeignKey('Menu', related_name='contained_items', verbose_name=_('menu'), null=True, blank=True, editable=False)

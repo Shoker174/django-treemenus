@@ -7,7 +7,7 @@ try:
 except ImportError:  # Django < 1.4
     from django.conf.urls.defaults import patterns, url
 from django.contrib import admin
-from django.contrib.admin.util import unquote
+from django.contrib.admin.utils import unquote
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect, Http404
 from django.http import HttpResponsePermanentRedirect
@@ -120,6 +120,21 @@ class MenuAdmin(admin.ModelAdmin):
                            (r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/move_down/$',
                             self.admin_site.admin_view(self.move_down_item)),
                            )
+        if django.VERSION >= (1, 9):
+            my_urls = [
+                url(r'^(?P<menu_pk>[-\w]+)/items/add/$',
+                    self.admin_site.admin_view(self.add_menu_item)),
+                url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/$',
+                    self.admin_site.admin_view(self.edit_menu_item)),
+                url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/delete/$',
+                    self.admin_site.admin_view(self.delete_menu_item)),
+                url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/history/$',
+                    self.admin_site.admin_view(self.history_menu_item)),
+                url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/move_up/$',
+                    self.admin_site.admin_view(self.move_up_item)),
+                url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/move_down/$',
+                    self.admin_site.admin_view(self.move_down_item)),
+            ]
 
         if django.VERSION >= (1, 4):
             # Dummy named URLs to satisfy reversing the reversing requirements

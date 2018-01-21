@@ -6,7 +6,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 
 class MenuItem(models.Model):
     parent = models.ForeignKey('self', verbose_name=_('parent'), null=True, blank=True)
-    caption = models.CharField(_('caption'), max_length=50)
+    caption = models.CharField(_('caption'), max_length=100)
     url = models.CharField(_('URL'), max_length=200, blank=True)
     named_url = models.CharField(_('named URL'), max_length=200, blank=True)
     level = models.IntegerField(_('level'), default=0, editable=False)
@@ -101,9 +101,15 @@ class MenuItem(models.Model):
         return self.children().count() > 0
 
 
+class MenuManager(models.Manager):
+    pass
+
+
 class Menu(models.Model):
     name = models.CharField(_('name'), max_length=50)
     root_item = models.ForeignKey(MenuItem, related_name='is_root_item_of', verbose_name=_('root item'), null=True, blank=True, editable=False)
+
+    objects = MenuManager()
 
     def save(self, force_insert=False, **kwargs):
         if not self.root_item:

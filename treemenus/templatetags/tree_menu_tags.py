@@ -72,7 +72,10 @@ def show_menu(context, menu_name, menu_type=None):
         else:
             return context
 
-    context['menu'] = menu[menu_object.root_item_id]['children']
+    try:
+        context['menu'] = menu[menu_object.root_item_id]['children']
+    except KeyError:
+        return context
     if menu_type:
         context['menu_type'] = menu_type
     return context

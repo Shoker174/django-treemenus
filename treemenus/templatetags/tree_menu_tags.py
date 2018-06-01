@@ -5,6 +5,7 @@ import copy
 import django
 from django import template
 from django.conf import settings
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from django.template.defaulttags import url
 from django.template import Node, TemplateSyntaxError
 
@@ -33,44 +34,49 @@ def get_treemenus_static_prefix():
 def show_menu(context, menu_name, menu_type=None):
     try:
         menu_object = Menu.objects.get(name=menu_name)
-        # Fetch menu in single query
-        menu_items = MenuItem.objects.filter(menu_id=menu_object.id)\
-            .order_by('-level', 'parent_id', 'rank')\
-            .select_related('extension')
-
-        # Flag which determines that last level has been processed
-        last_level_processed = False
-        current_level = -1
-        menu = collections.defaultdict(dict)
-        menu_temp = collections.defaultdict(dict)
-
-        # The whole Menu is created as dictionary in this loop
-        for menu_item in menu_items:
-            if menu_item.level != 0:
-                if current_level != -1 and current_level != menu_item.level and menu_item.level != '0':
-                    last_level_processed = True
-                    menu_temp = copy.deepcopy(menu)
-                    menu = collections.defaultdict(dict)
-                current_level = menu_item.level
-                if not last_level_processed:
-                    if 'children' not in menu[menu_item.parent_id].keys():
-                        menu[menu_item.parent_id]['children'] = []
-                    child = {"value": menu_item, 'children': []}
-                    menu[menu_item.parent_id]['children'].append(child)
-                else:
-                    index = menu_item.parent_id
-                    menu_temp[menu_item.id]['value'] = menu_item
-                    if 'children' not in menu_temp[menu_item.id].keys():
-                        menu_temp[menu_item.id]['children'] = []
-                    if 'children' not in menu[index].keys():
-                        menu[index]['children'] = []
-                    menu[index]['children'].append(copy.deepcopy(menu_temp[menu_item.id]))
-
-    except Menu.DoesNotExist as e:
+    except ObjectDoesNotExist as e:
         if settings.DEBUG:
             raise e
         else:
             return context
+    except MultipleObjectsReturned as e:
+        if settings.DEBUG:
+            raise e
+        else:
+            menu_object = Menu.objects.filter(name=menu_name)[0]
+
+    # Fetch menu in single query
+    menu_items = MenuItem.objects.filter(menu_id=menu_object.id) \
+        .order_by('-level', 'parent_id', 'rank') \
+        .select_related('extension')
+
+    # Flag which determines that last level has been processed
+    last_level_processed = False
+    current_level = -1
+    menu = collections.defaultdict(dict)
+    menu_temp = collections.defaultdict(dict)
+
+    # The whole Menu is created as dictionary in this loop
+    for menu_item in menu_items:
+        if menu_item.level != 0:
+            if current_level != -1 and current_level != menu_item.level and menu_item.level != '0':
+                last_level_processed = True
+                menu_temp = copy.deepcopy(menu)
+                menu = collections.defaultdict(dict)
+            current_level = menu_item.level
+            if not last_level_processed:
+                if 'children' not in menu[menu_item.parent_id].keys():
+                    menu[menu_item.parent_id]['children'] = []
+                child = {"value": menu_item, 'children': []}
+                menu[menu_item.parent_id]['children'].append(child)
+            else:
+                index = menu_item.parent_id
+                menu_temp[menu_item.id]['value'] = menu_item
+                if 'children' not in menu_temp[menu_item.id].keys():
+                    menu_temp[menu_item.id]['children'] = []
+                if 'children' not in menu[index].keys():
+                    menu[index]['children'] = []
+                menu[index]['children'].append(copy.deepcopy(menu_temp[menu_item.id]))
 
     try:
         context['menu'] = menu[menu_object.root_item_id]['children']

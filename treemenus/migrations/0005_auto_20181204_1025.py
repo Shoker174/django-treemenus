@@ -7,14 +7,14 @@ from django.db import models, migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('treemenus', '0003_auto_20180208_1301'),
+        ('treemenus', '0004_menuitem_svg'),
     ]
 
     operations = [
         migrations.AddField(
             model_name='menuitem',
-            name='svg',
-            field=models.FileField(help_text='svg has higher priority over the image', upload_to=b'upload/menu', null=True, verbose_name=b'svg', blank=True),
+            name='show',
+            field=models.BooleanField(default=True, verbose_name='show'),
             preserve_default=True,
         ),
     ]

@@ -31,63 +31,54 @@ def get_treemenus_static_prefix():
         return admin_media_prefix() + 'img/admin/'
 
 
+@register.inclusion_tag('%s/menu.html' % APP_LABEL, takes_context=True)
 def show_menu(context, menu_name, menu_type=None):
-    try:
-        menu_object = Menu.objects.get(name=menu_name)
-    except ObjectDoesNotExist as e:
-        if settings.DEBUG:
-            raise e
-        else:
+
+    menu_object = Menu.objects.filter(name=menu_name).first()
+    if menu_object:
+        # Fetch menu in single query
+        menu_items = MenuItem.objects.filter(menu_id=menu_object.id, show=True) \
+            .order_by('-level', 'parent_id', 'rank') \
+            .select_related('extension')
+
+        # Flag which determines that last level has been processed
+        last_level_processed = False
+        current_level = -1
+        menu = collections.defaultdict(dict)
+        menu_temp = collections.defaultdict(dict)
+
+        # The whole Menu is created as dictionary in this loop
+        for menu_item in menu_items:
+            if menu_item.level != 0:
+                if current_level != -1 and current_level != menu_item.level and menu_item.level != '0':
+                    last_level_processed = True
+                    menu_temp = copy.deepcopy(menu)
+                    menu = collections.defaultdict(dict)
+                current_level = menu_item.level
+                if not last_level_processed:
+                    if 'children' not in menu[menu_item.parent_id].keys():
+                        menu[menu_item.parent_id]['children'] = []
+                    child = {"value": menu_item, 'children': []}
+                    menu[menu_item.parent_id]['children'].append(child)
+                else:
+                    index = menu_item.parent_id
+                    menu_temp[menu_item.id]['value'] = menu_item
+                    if 'children' not in menu_temp[menu_item.id].keys():
+                        menu_temp[menu_item.id]['children'] = []
+                    if 'children' not in menu[index].keys():
+                        menu[index]['children'] = []
+                    menu[index]['children'].append(copy.deepcopy(menu_temp[menu_item.id]))
+
+        try:
+            context['menu'] = menu[menu_object.root_item_id]['children']
+        except KeyError:
             return context
-    except MultipleObjectsReturned as e:
-        if settings.DEBUG:
-            raise e
-        else:
-            menu_object = Menu.objects.filter(name=menu_name)[0]
-
-    # Fetch menu in single query
-    menu_items = MenuItem.objects.filter(menu_id=menu_object.id) \
-        .order_by('-level', 'parent_id', 'rank') \
-        .select_related('extension')
-
-    # Flag which determines that last level has been processed
-    last_level_processed = False
-    current_level = -1
-    menu = collections.defaultdict(dict)
-    menu_temp = collections.defaultdict(dict)
-
-    # The whole Menu is created as dictionary in this loop
-    for menu_item in menu_items:
-        if menu_item.level != 0:
-            if current_level != -1 and current_level != menu_item.level and menu_item.level != '0':
-                last_level_processed = True
-                menu_temp = copy.deepcopy(menu)
-                menu = collections.defaultdict(dict)
-            current_level = menu_item.level
-            if not last_level_processed:
-                if 'children' not in menu[menu_item.parent_id].keys():
-                    menu[menu_item.parent_id]['children'] = []
-                child = {"value": menu_item, 'children': []}
-                menu[menu_item.parent_id]['children'].append(child)
-            else:
-                index = menu_item.parent_id
-                menu_temp[menu_item.id]['value'] = menu_item
-                if 'children' not in menu_temp[menu_item.id].keys():
-                    menu_temp[menu_item.id]['children'] = []
-                if 'children' not in menu[index].keys():
-                    menu[index]['children'] = []
-                menu[index]['children'].append(copy.deepcopy(menu_temp[menu_item.id]))
-
-    try:
-        context['menu'] = menu[menu_object.root_item_id]['children']
-    except KeyError:
-        return context
-    if menu_type:
-        context['menu_type'] = menu_type
+        if menu_type:
+            context['menu_type'] = menu_type
     return context
-register.inclusion_tag('%s/menu.html' % APP_LABEL, takes_context=True)(show_menu)
 
 
+@register.inclusion_tag('%s/menu_item.html' % APP_LABEL, takes_context=True)
 def show_menu_item(context, menu_item):
     if not isinstance(menu_item['value'], MenuItem):
         error_message = 'Given argument must be a MenuItem object.'
@@ -95,7 +86,6 @@ def show_menu_item(context, menu_item):
 
     context['menu_item'] = menu_item
     return context
-register.inclusion_tag('%s/menu_item.html' % APP_LABEL, takes_context=True)(show_menu_item)
 
 
 class ReverseNamedURLNode(Node):

@@ -22,6 +22,7 @@
 		<thead>
 			<tr>
 				<th>{% trans "Caption" %}</th>
+				<th>{% trans "Show" %}</th>
 				<th>{% trans "Url" %}</th>
 				<th>{% trans "Named url" %}</th>
 				<th colspan="2">{% trans "Move" %}</th>
@@ -33,12 +34,19 @@
 			<tr class="{% cycle 'row1' 'row2' %}">
 
 				{% if forloop.first %}
-					<td colspan="3">
+					<td colspan="4">
 						{% trans "[Root]" %}
 					</td>
 				{% else %}
-					<td width="35%">
+					<td width="25%">
 						<a href="items/{{ menu_item.pk }}/">{{ menu_item.caption_with_spacer|safe }}</a>
+					</td>
+					<td width="10%">
+						{% if menu_item.show %}
+							<img src="/static/admin/img/icon-yes.gif" alt="True">
+						{% else %}
+							<img src="/static/admin/img/icon-no.gif" alt="True">
+						{% endif %}
 					</td>
 					<td width="25%">
 						{{ menu_item.url }}

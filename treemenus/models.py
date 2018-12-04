@@ -11,6 +11,8 @@ class MenuItem(models.Model):
     named_url = models.CharField(_('named URL'), max_length=200, blank=True)
     image = models.ImageField(verbose_name=_('image'), blank=True, null=True, upload_to='upload/menu',
                               help_text=_('PNG, JPG, GIF only.'))
+    svg = models.FileField(verbose_name='svg', blank=True, null=True, upload_to='upload/menu',
+                           help_text=_('svg has higher priority over the image'))
     level = models.IntegerField(_('level'), default=0, editable=False)
     rank = models.IntegerField(_('rank'), default=0, editable=False)
     menu = models.ForeignKey('Menu', related_name='contained_items', verbose_name=_('menu'), null=True, blank=True, editable=False)
@@ -101,6 +103,9 @@ class MenuItem(models.Model):
 
     def has_children(self):
         return self.children().count() > 0
+
+    def get_image(self):
+        return self.svg if self.svg else self.image
 
 
 class MenuManager(models.Manager):

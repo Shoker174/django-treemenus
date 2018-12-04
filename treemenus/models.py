@@ -1,7 +1,28 @@
+import os
+import re
 from itertools import chain
-
+from unidecode import unidecode
+from django.template.defaultfilters import slugify
+from django.utils.encoding import smart_unicode
+from django.utils.deconstruct import deconstructible
 from django.db import models
 from django.utils.translation import ugettext, ugettext_lazy as _
+
+
+@deconstructible
+class SlugifyUpload(object):
+
+    """ Class for converting file name to Latin before saving"""
+
+    def __init__(self, path):
+        self.sub_path = path
+
+    def __call__(self, instance, filename):
+        filename, ext = filename.rsplit('.', 1)
+        filename = re.sub(r'[_.,:;@#$%^&?*|()\[\]]', '-', filename)
+        filename = slugify(unidecode(smart_unicode(filename)))
+        full_filename = '.'.join([filename, ext])
+        return os.path.join(self.sub_path, full_filename)
 
 
 class MenuItem(models.Model):
@@ -10,9 +31,9 @@ class MenuItem(models.Model):
     caption = models.CharField(_('caption'), max_length=100)
     url = models.CharField(_('URL'), max_length=200, blank=True)
     named_url = models.CharField(_('named URL'), max_length=200, blank=True)
-    image = models.ImageField(verbose_name=_('image'), blank=True, null=True, upload_to='upload/menu',
+    image = models.ImageField(verbose_name=_('image'), blank=True, null=True, upload_to=SlugifyUpload('upload/menu'),
                               help_text=_('PNG, JPG, GIF only.'))
-    svg = models.FileField(verbose_name='svg', blank=True, null=True, upload_to='upload/menu',
+    svg = models.FileField(verbose_name='svg', blank=True, null=True, upload_to=SlugifyUpload('upload/menu'),
                            help_text=_('svg has higher priority over the image'))
     level = models.IntegerField(_('level'), default=0, editable=False)
     rank = models.IntegerField(_('rank'), default=0, editable=False)

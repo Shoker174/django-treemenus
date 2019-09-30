@@ -19,7 +19,7 @@ except ImportError:  # Django < 1.5
 
 from treemenus.models import Menu, MenuItem
 from treemenus.utils import move_item, clean_ranks, move_item_or_clean_ranks
-from treemenus.templatetags.tree_menu_tags import show_menu
+from treemenus.templatetags.treemenus_tags import show_menu
 
 
 class TreemenusTestCase(TestCase):

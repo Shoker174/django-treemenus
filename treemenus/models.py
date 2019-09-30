@@ -1,12 +1,16 @@
 import os
 import re
+import json
 from itertools import chain
 from unidecode import unidecode
 from django.template.defaultfilters import slugify
 from django.utils.encoding import smart_unicode
 from django.utils.deconstruct import deconstructible
+from django.core.cache import cache
 from django.db import models
 from django.utils.translation import ugettext, ugettext_lazy as _
+from django.forms.models import model_to_dict
+from .settings import NAMES
 
 
 @deconstructible
@@ -26,15 +30,18 @@ class SlugifyUpload(object):
 
 
 class MenuItem(models.Model):
+
+    class Meta:
+        verbose_name = _('menu item')
+        verbose_name_plural = _('menu items')
+
+
     parent = models.ForeignKey('self', verbose_name=_('parent'), null=True, blank=True)
     show = models.BooleanField(verbose_name=_('show'), default=True)
-    caption = models.CharField(_('caption'), max_length=100)
-    url = models.CharField(_('URL'), max_length=200, blank=True)
-    named_url = models.CharField(_('named URL'), max_length=200, blank=True)
-    image = models.ImageField(verbose_name=_('image'), blank=True, null=True, upload_to=SlugifyUpload('upload/menu'),
-                              help_text=_('PNG, JPG, GIF only.'))
-    svg = models.FileField(verbose_name='svg', blank=True, null=True, upload_to=SlugifyUpload('upload/menu'),
-                           help_text=_('svg has higher priority over the image'))
+    caption = models.CharField(_('caption'), max_length=255)
+    add_caption = models.CharField(_('add caption'), null=True, blank=True, max_length=255)
+    url = models.CharField(_('url'), max_length=200, blank=True)
+    image = models.FileField(verbose_name=_('image'), blank=True, null=True, upload_to=SlugifyUpload('upload/menu'))
     level = models.IntegerField(_('level'), default=0, editable=False)
     rank = models.IntegerField(_('rank'), default=0, editable=False)
     menu = models.ForeignKey('Menu', related_name='contained_items', verbose_name=_('menu'), null=True, blank=True, editable=False)
@@ -126,8 +133,17 @@ class MenuItem(models.Model):
     def has_children(self):
         return self.children().count() > 0
 
-    def get_image(self):
-        return self.svg if self.svg else self.image
+    def get_data(self):
+        data = model_to_dict(self, exclude=['parent', 'menu', 'image'])
+        data['image'] = self.image.url if self.image else ''
+        data['children'] = []
+        for item in self.children():
+            data['children'].append(item.get_data())
+        data['has_children'] = bool(data['children'])
+        return data
+
+    def update_cache_data(self):
+        self.menu.update_cache_data()
 
 
 class MenuManager(models.Manager):
@@ -135,7 +151,8 @@ class MenuManager(models.Manager):
 
 
 class Menu(models.Model):
-    name = models.CharField(_('name'), max_length=50)
+    name = models.CharField(_('name'), max_length=50, unique=True)
+    show = models.BooleanField(verbose_name=_('show'), default=True)
     root_item = models.ForeignKey(MenuItem, related_name='is_root_item_of', verbose_name=_('root item'), null=True, blank=True, editable=False)
 
     objects = MenuManager()
@@ -143,7 +160,7 @@ class Menu(models.Model):
     def save(self, force_insert=False, **kwargs):
         if not self.root_item:
             root_item = MenuItem()
-            root_item.caption = ugettext('root')
+            root_item.caption = self.name
             if not self.pk:  # If creating a new object (i.e does not have a pk yet)
                 super(Menu, self).save(force_insert, **kwargs)  # Save, so that it gets a pk
                 force_insert = False
@@ -161,12 +178,29 @@ class Menu(models.Model):
     def show(self):
         return bool(self.contained_items.filter(level=1, show=True))
 
+    def get_data(self):
+        data = model_to_dict(self, exclude=['root_item'])
+        data['root_item'] = self.root_item.get_data()
+        return data
+
+    def get_cache_data(self):
+        json_data = cache.get(self.name)
+        if json_data:
+            return json.loads(json_data)
+        else:
+            data = self.get_data()
+            cache.set(self.name, json.dumps(data, ensure_ascii=False))
+            return data
+
+    def update_cache_data(self):
+        cache.set(self.name, json.dumps(self.get_data(), ensure_ascii=False))
+
     def __str__(self):
-        return self.name
+        return NAMES.get(self.name)
 
     def __unicode__(self):
-        return self.name
+        return NAMES.get(self.name)
 
     class Meta:
-        verbose_name = _('menu')
-        verbose_name_plural = _('menus')
+        verbose_name = _('Menu')
+        verbose_name_plural = _('Menus')

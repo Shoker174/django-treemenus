@@ -1,0 +1,2 @@
+recursive-include treemenus *
+exclude *.orig *.pyc

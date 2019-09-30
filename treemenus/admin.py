@@ -1,29 +1,22 @@
-import re
 
-import django
-try:
-    from django.conf.urls import patterns, url
-    from django.views.generic import RedirectView
-except ImportError:  # Django < 1.4
-    from django.conf.urls.defaults import patterns, url
+from django.conf.urls import url
+from django.views.generic import RedirectView
 from django.contrib import admin
-from django.contrib.admin.utils import unquote
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect, Http404
 from django.http import HttpResponsePermanentRedirect
 from django.utils.html import escape
 from django.utils.translation import ugettext as _
-try:
-    from django.utils.encoding import force_text
-except ImportError:  # Django < 1.5
-    from django.utils.encoding import force_unicode as force_text
-
-from treemenus.models import Menu, MenuItem
-from treemenus.utils import get_parent_choices, MenuItemChoiceField, move_item_or_clean_ranks
+from django.utils.encoding import force_text
+from .models import Menu, MenuItem
+from .utils import get_parent_choices, MenuItemChoiceField, move_item_or_clean_ranks
+from .forms import MenuAdminForm
 
 
 class MenuItemAdmin(admin.ModelAdmin):
-    ''' This class is used as a proxy by MenuAdmin to manipulate menu items. It should never be registered. '''
+
+    """This class is used as a proxy by MenuAdmin to manipulate menu items. It should never be registered. """
+
     def __init__(self, model, admin_site, menu):
         super(MenuItemAdmin, self).__init__(model, admin_site)
         self._menu = menu
@@ -42,11 +35,8 @@ class MenuItemAdmin(admin.ModelAdmin):
         obj.save()
 
     def response_add(self, request, obj, post_url_continue=None):
-        if django.VERSION < (1, 5):
-            post_url_continue = '../%s/'
-        else:
-            pk_value = obj._get_pk_val()
-            post_url_continue = '../%s/' % pk_value
+        pk_value = obj._get_pk_val()
+        post_url_continue = '../%s/' % pk_value
         response = super(MenuItemAdmin, self).response_add(request, obj, post_url_continue)
         if "_continue" in request.POST:
             return response
@@ -71,93 +61,31 @@ class MenuItemAdmin(admin.ModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         form = super(MenuItemAdmin, self).get_form(request, obj, **kwargs)
         choices = get_parent_choices(self._menu, obj)
-        form.base_fields['parent'] = MenuItemChoiceField(choices=choices)
+        form.base_fields['parent'] = MenuItemChoiceField(label=_('parent'), choices=choices)
         return form
 
 
+@admin.register(Menu)
 class MenuAdmin(admin.ModelAdmin):
-    menu_item_admin_class = MenuItemAdmin
 
-    def __call__(self, request, url):
-        ''' DEPRECATED!! More recent versions of Django use the get_urls method instead.
-            Overriden to route extra URLs.
-        '''
-        if url:
-            if url.endswith('items/add'):
-                return self.add_menu_item(request, unquote(url[:-10]))
-            if url.endswith('items'):
-                return HttpResponseRedirect('../')
-            match = re.match('^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)$', url)
-            if match:
-                return self.edit_menu_item(request, match.group('menu_pk'), match.group('menu_item_pk'))
-            match = re.match('^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/delete$', url)
-            if match:
-                return self.delete_menu_item(request, match.group('menu_pk'), match.group('menu_item_pk'))
-            match = re.match('^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/history$', url)
-            if match:
-                return self.history_menu_item(request, match.group('menu_pk'), match.group('menu_item_pk'))
-            match = re.match('^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/move_up$', url)
-            if match:
-                return self.move_up_item(request, match.group('menu_pk'), match.group('menu_item_pk'))
-            match = re.match('^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/move_down$', url)
-            if match:
-                return self.move_down_item(request, match.group('menu_pk'), match.group('menu_item_pk'))
-        return super(MenuAdmin, self).__call__(request, url)
+    form = MenuAdminForm
+    menu_item_admin_class = MenuItemAdmin
 
     def get_urls(self):
         urls = super(MenuAdmin, self).get_urls()
-        my_urls = patterns('',
-                           (r'^(?P<menu_pk>[-\w]+)/items/add/$',
-                            self.admin_site.admin_view(self.add_menu_item)),
-                           (r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/$',
-                            self.admin_site.admin_view(self.edit_menu_item)),
-                           (r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/delete/$',
-                            self.admin_site.admin_view(self.delete_menu_item)),
-                           (r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/history/$',
-                            self.admin_site.admin_view(self.history_menu_item)),
-                           (r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/move_up/$',
-                            self.admin_site.admin_view(self.move_up_item)),
-                           (r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/move_down/$',
-                            self.admin_site.admin_view(self.move_down_item)),
-                           )
-        if django.VERSION >= (1, 9):
-            my_urls = [
-                url(r'^(?P<menu_pk>[-\w]+)/items/add/$',
-                    self.admin_site.admin_view(self.add_menu_item)),
-                url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/$',
-                    self.admin_site.admin_view(self.edit_menu_item)),
-                url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/delete/$',
-                    self.admin_site.admin_view(self.delete_menu_item)),
-                url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/history/$',
-                    self.admin_site.admin_view(self.history_menu_item)),
-                url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/move_up/$',
-                    self.admin_site.admin_view(self.move_up_item)),
-                url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/move_down/$',
-                    self.admin_site.admin_view(self.move_down_item)),
-            ]
-
-        if django.VERSION >= (1, 4):
-            # Dummy named URLs to satisfy reversing the reversing requirements
-            # of the menuitem add/change views. It shouldn't ever be used; it
-            # just needs to exist so that it get resolved internally by the
-            # django admin.
-            
-            my_urls += patterns('',
-                                url(r'^item_changelist/$',
-                                    RedirectView.as_view(url='/'),
-                                    name='treemenus_menuitem_changelist'),
-                                url(r'^item_add/$',
-                                    RedirectView.as_view(url='/'),
-                                    name='treemenus_menuitem_add'),
-                                url(r'^item_history/(?P<pk>[-\w]+)/$',
-                                    self.menu_item_redirect,
-                                    {'action' : 'history'},
-                                    name='treemenus_menuitem_history'),
-                                url(r'^item_delete/(?P<pk>[-\w]+)/$',
-                                    self.menu_item_redirect,
-                                    {'action': 'delete'},
-                                    name='treemenus_menuitem_delete'),
-                                )
+        my_urls = [
+            url(r'^(?P<menu_pk>[-\w]+)/items/add/$', self.admin_site.admin_view(self.add_menu_item)),
+            url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/$', self.admin_site.admin_view(self.edit_menu_item)),
+            url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/delete/$', self.admin_site.admin_view(self.delete_menu_item)),
+            url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/history/$', self.admin_site.admin_view(self.history_menu_item)),
+            url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/move_up/$', self.admin_site.admin_view(self.move_up_item)),
+            url(r'^(?P<menu_pk>[-\w]+)/items/(?P<menu_item_pk>[-\w]+)/move_down/$', self.admin_site.admin_view(self.move_down_item)),
+            url(r'^item_changelist/$', RedirectView.as_view(url='/'), name='treemenus_menuitem_changelist'),
+            url(r'^change/item/add/$', RedirectView.as_view(url='/'), name='treemenus_menuitem_add'),
+            url(r'^item_history/(?P<pk>[-\w]+)/$', self.menu_item_redirect, {'action' : 'history'}, name='treemenus_menuitem_history'),
+            url(r'^item_delete/(?P<pk>[-\w]+)/$', self.menu_item_redirect, {'action': 'delete'}, name='treemenus_menuitem_delete'),
+            url(r'^(.+)/item_change/$', self.menu_item_change_redirect, name='treemenus_menuitem_change'),
+        ]
         return my_urls + urls
 
     def get_object_with_change_permissions(self, request, model, obj_pk):
@@ -179,6 +107,11 @@ class MenuAdmin(admin.ModelAdmin):
         menu_pk = MenuItem.objects.select_related('menu').get(id=pk).menu.id
         return HttpResponsePermanentRedirect(
                 r'../../%d/items/%s/%s/' % (menu_pk, pk, action))
+
+    def menu_item_change_redirect(self, request, pk):
+        menu_pk = MenuItem.objects.select_related('menu').get(id=pk).menu.id
+        print(menu_pk)
+        return HttpResponsePermanentRedirect(r'../../{}/change/'.format(menu_pk))
 
     def add_menu_item(self, request, menu_pk):
         ''' Custom view '''
@@ -214,10 +147,7 @@ class MenuAdmin(admin.ModelAdmin):
         else:
             msg = _('The menu item "%s" is not allowed to move down.') % force_text(menu_item)
 
-        if django.VERSION >= (1, 4):
-            self.message_user(request, message=msg)
-        else:
-            request.user.message_set.create(message=msg)
+        self.message_user(request, message=msg)
 
         return HttpResponseRedirect('../../../')
 
@@ -231,12 +161,6 @@ class MenuAdmin(admin.ModelAdmin):
         else:
             msg = _('The menu item "%s" is not allowed to move up.') % force_text(menu_item)
 
-        if django.VERSION >= (1, 4):
-            self.message_user(request, message=msg)
-        else:
-            request.user.message_set.create(message=msg)
+        self.message_user(request, message=msg)
 
         return HttpResponseRedirect('../../../')
-
-
-admin.site.register(Menu, MenuAdmin)

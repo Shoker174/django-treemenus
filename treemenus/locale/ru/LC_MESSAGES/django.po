@@ -70,34 +70,59 @@ msgstr "Пункт меню \"%s\" нельзя переместить ниже.
 msgid "The menu item \"%s\" is not allowed to move up."
 msgstr "Пункт меню \"%s\" нельзя переместить выше."
 
-#: models.py:17
-msgid "Parent"
+#: models.py:35
+#: admin.py:63
+msgid "parent"
 msgstr "Родительский элемент"
 
 #: models.py:18
 #: templates/admin/treemenus/edit_menu.html:39
+msgid "caption"
+msgstr "Заголовок"
+
+#: templates/admin/treemenus/edit_menu.html:39
 msgid "Caption"
 msgstr "Заголовок"
 
-#: models.py:19
-msgid "URL"
-msgstr "URL"
+#: models.py:32
+msgid "add caption"
+msgstr "Дополнительный заголовок"
 
-#: models.py:20
-msgid "Named URL"
-msgstr "Именованый URL"
+
+#: templates/admin/treemenus/change_form.html:39
+msgid "Show"
+msgstr "Отображать"
+
+#: models.py:19
+msgid "url"
+msgstr "url"
+
+#: models.py:19
+msgid "menu item"
+msgstr "пункт меню"
+
+#: models.py:19
+msgid "menu items"
+msgstr "пункты меню"
+
+#: models.py:19
+msgid "image"
+msgstr "изображение"
+
+#: models.py:19
+msgid "show"
+msgstr "отображать"
 
 #: models.py:21
 msgid "Level"
 msgstr "Уровень"
 
 #: models.py:22
-#, fuzzy
 msgid "Rank"
 msgstr "Положение"
 
 #: models.py:23
-#: models.py:147
+#: models.py:172
 msgid "Menu"
 msgstr "Меню"
 
@@ -109,11 +134,12 @@ msgstr "Название"
 msgid "Root Item"
 msgstr "Корневой пункт"
 
-#: models.py:129
+#: models.py:147
 msgid "Root"
 msgstr "Корень"
 
-#: models.py:148
+#: apps.py:9
+#: models.py:173
 #: templates/admin/treemenus/add_edit_item.html:14
 #: templates/admin/treemenus/add_edit_item.html:20
 #: templates/admin/treemenus/delete_item_confirmation.html:9
@@ -198,7 +224,6 @@ msgid "Move"
 msgstr "Переместить"
 
 #: templates/admin/treemenus/edit_menu.html:52
-#, fuzzy
 msgid "[Root]"
 msgstr "[Корень]"
 

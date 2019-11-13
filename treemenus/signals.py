@@ -2,8 +2,10 @@ from django.db.models.signals import post_save, post_delete
 from .models import Menu, MenuItem
 
 
-def menu_change_handler(sender, instance, **kwargs):
-    instance.update_cache_data()
+def menu_change_handler(sender, instance, created, **kwargs):
+    if not created:
+        instance.update_cache_data()
+
 
 post_save.connect(menu_change_handler, Menu)
 post_save.connect(menu_change_handler, MenuItem)

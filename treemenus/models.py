@@ -46,9 +46,6 @@ class MenuItem(models.Model):
     rank = models.IntegerField(_('rank'), default=0, editable=False)
     menu = models.ForeignKey('Menu', related_name='contained_items', verbose_name=_('menu'), null=True, blank=True, editable=False)
 
-    def __str__(self):
-        return self.caption
-
     def __unicode__(self):
         return self.caption
 
@@ -142,8 +139,9 @@ class MenuItem(models.Model):
         data['has_children'] = bool(data['children'])
         return data
 
-    def update_cache_data(self):
-        self.menu.update_cache_data()
+    def delete_cache_data(self):
+        if hasattr(self, 'menu'):
+            self.menu.delete_cache_data()
 
 
 class MenuManager(models.Manager):
@@ -160,7 +158,7 @@ class Menu(models.Model):
     def save(self, force_insert=False, **kwargs):
         if not self.root_item:
             root_item = MenuItem()
-            root_item.caption = self.name
+            root_item.caption = NAMES.get(self.name)
             if not self.pk:  # If creating a new object (i.e does not have a pk yet)
                 super(Menu, self).save(force_insert, **kwargs)  # Save, so that it gets a pk
                 force_insert = False
@@ -192,11 +190,8 @@ class Menu(models.Model):
             cache.set(self.name, json.dumps(data, ensure_ascii=False))
             return data
 
-    def update_cache_data(self):
-        cache.set(self.name, json.dumps(self.get_data(), ensure_ascii=False))
-
-    def __str__(self):
-        return NAMES.get(self.name)
+    def delete_cache_data(self):
+        cache.delete(self.name)
 
     def __unicode__(self):
         return NAMES.get(self.name)

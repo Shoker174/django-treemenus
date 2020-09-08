@@ -24,7 +24,7 @@ class SlugifyUpload(object):
     def __call__(self, instance, filename):
         filename, ext = filename.rsplit('.', 1)
         filename = re.sub(r'[_.,:;@#$%^&?*|()\[\]]', '-', filename)
-        filename = slugify(unidecode(smart_unicode(filename)))
+        filename = slugify(unidecode(smart_text(filename)))
         full_filename = '.'.join([filename, ext])
         return os.path.join(self.sub_path, full_filename)
 
